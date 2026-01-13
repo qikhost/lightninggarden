@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Lightning Seasonal Garden & Haiku Collector</title>
+<style>
+body { font-family: monospace; background: #f0fff0; text-align: center; margin: 2em; }
+button { padding: 10px 20px; font-size: 16px; margin: 5px; cursor: pointer; }
+#garden { display: flex; flex-wrap: wrap; justify-content: center; margin-top: 20px; }
+.plant-card { border: 2px solid #4caf50; border-radius: 10px; padding: 10px; margin: 5px; width: 180px; background: #fffbe6; position: relative; overflow: hidden; transition: transform 0.3s; }
+.plant-card pre { font-family: monospace; margin: 0; }
+#haikus { margin-top: 20px; }
+.export-btn { margin-top: 10px; padding: 6px 12px; font-size: 14px; cursor: pointer; }
+.special { border-color: #FFD700; background: #fff8dc; }
+@keyframes sparkle {
+  0% { transform: scale(1) rotate(0deg); opacity: 0.8; }
+  50% { transform: scale(1.2) rotate(5deg); opacity: 1; }
+  100% { transform: scale(1) rotate(-5deg); opacity: 0.8; }
+}
+.special.bloom { animation: sparkle 0.8s ease-out; }
+</style>
+</head>
+<body>
+
+<h1>🌱 Lightning Seasonal Garden & Haiku Collector 🌱</h1>
+
+<button id="plantBtn">Plant a Seed (1 sat via Alby)</button>
+<button class="export-btn" id="exportBtn">Export Garden as PNG</button>
+
+<div id="garden"></div>
+
+<h2>Your Haikus</h2>
+<div id="haikus"></div>
+
+<script>
+// ----- Seasonal Plants -----
+const season = (()=>{
+  const month = new Date().getMonth();
+  if(month>=2 && month<=4) return "spring";
+  if(month>=5 && month<=7) return "summer";
+  if(month>=8 && month<=10) return "autumn";
+  return "winter";
+})();
+
+const plantsBySeason = {
+  spring: [
+    {name: "Sakura", ascii: "🌸", personality: "elegant", rarity:"common"},
+    {name: "Bamboo Shoot", ascii: "🎋", personality: "resilient", rarity:"common"},
+    {name: "Twilight Orchid", ascii: "💮", personality: "mystical", rarity:"rare"}
+  ],
+  summer: [
+    {name: "Sunflower", ascii: "🌻", personality: "cheerful", rarity:"common"},
+    {name: "Lotus", ascii: "🌺", personality: "peaceful", rarity:"common"},
+    {name: "Celestial Lotus", ascii: "🌟", personality: "divine", rarity:"rare"}
+  ],
+  autumn: [
+    {name: "Maple", ascii: "🍁", personality: "serene", rarity:"common"},
+    {name: "Golden Bamboo", ascii: "🎍", personality: "majestic", rarity:"rare"},
+    {name: "Cactus", ascii: "🌵", personality: "stoic", rarity:"common"}
+  ],
+  winter: [
+    {name: "Pine", ascii: "🌲", personality: "enduring", rarity:"common"},
+    {name: "Cactus", ascii: "🌵", personality: "stoic", rarity:"common"},
+    {name: "Twilight Orchid", ascii: "💮", personality: "mystical", rarity:"rare"}
+  ]
+};
+
+// ----- Seasonal Haikus -----
+const haikusBySeason = {
+  spring: [
+    "Spring winds whisper low\nPetals dance in morning light\nNature softly speaks",
+    "Cherry blossoms fall\nFootsteps trace the fleeting pink\nTime drifts in petals"
+  ],
+  summer: [
+    "Sunflowers turn bright\nChasing the light endlessly\nJoy in every gaze",
+    "Morning dew glistens\nSpiderwebs hold tiny jewels\nWorld awakes softly"
+  ],
+  autumn: [
+    "Golden leaves falling\nMaple dreams of autumn's warmth\nFootsteps on the path",
+    "Crisp air fills the fields\nPumpkins bask in fading sun\nHarvest songs resound"
+  ],
+  winter: [
+    "Snow blankets the field\nSilent trees hold frosted dreams\nWinter whispers calm",
+    "Evening moon rises\nCrickets sing in hidden corners\nNight blankets the earth"
+  ]
+};
+
+// ----- Load stored garden & haikus -----
+let garden = JSON.parse(localStorage.getItem('garden')||"[]");
+let collectedHaikus = JSON.parse(localStorage.getItem('haikus')||"[]");
+
+// ----- Render Functions -----
+function renderGarden() {
+  const gardenDiv = document.getElementById('garden');
+  gardenDiv.innerHTML = '';
+  garden.forEach((plant)=>{
+    const div = document.createElement('div');
+    div.className = "plant-card" + (plant.rarity==="rare"?" special":"");
+    div.innerHTML = `<pre>${plant.ascii}</pre><strong>${plant.name}</strong> (${plant.personality})<br>${plant.haiku}`;
+    gardenDiv.appendChild(div);
+    setTimeout(()=>div.classList.add('bloom'), 50);
+    setTimeout(()=>div.classList.remove('bloom'), 800);
+  });
+}
+
+function renderHaikus() {
+  const haikuDiv = document.getElementById('haikus');
+  haikuDiv.innerHTML = '';
+  collectedHaikus.forEach(h=>{
+    const p = document.createElement('p');
+    p.textContent = h;
+    haikuDiv.appendChild(p);
+  });
+}
+
+// ----- Lightning Payment & Planting -----
+async function plantSeed() {
+  if(!window.webln) return alert("Please install Alby or another WebLN wallet.");
+  try {
+    await window.webln.enable();
+    await window.webln.sendPayment("lnurl:user@alby.com?amount=1"); // pay 1 sat
+
+    // Daily bonus check
+    const today = new Date().toDateString();
+    const lastVisit = localStorage.getItem('lastVisit');
+    let forceRare = false;
+    if(lastVisit !== today){
+      localStorage.setItem('lastVisit', today);
+      forceRare = true;
+    }
+
+    // Select seasonal plant
+    const seasonPlants = plantsBySeason[season];
+    let plant;
+    const rarePlants = seasonPlants.filter(p=>p.rarity==="rare");
+    const commonPlants = seasonPlants.filter(p=>p.rarity==="common");
+
+    if(forceRare || Math.random()<0.10){
+      plant = rarePlants[Math.floor(Math.random()*rarePlants.length)];
+    } else {
+      plant = commonPlants[Math.floor(Math.random()*commonPlants.length)];
+    }
+
+    // Select seasonal haiku
+    const seasonHaikus = haikusBySeason[season];
+    const haiku = seasonHaikus[Math.floor(Math.random()*seasonHaikus.length)];
+
+    const card = {...plant, haiku};
+    garden.push(card);
+    localStorage.setItem('garden', JSON.stringify(garden));
+    collectedHaikus.push(haiku);
+    localStorage.setItem('haikus', JSON.stringify(collectedHaikus));
+    renderGarden();
+    renderHaikus();
+  } catch(e) {
+    console.error(e);
+    alert("Payment failed or cancelled.");
+  }
+}
+
+// ----- Export as PNG -----
+document.getElementById('exportBtn').onclick = function() {
+  const canvas = document.createElement('canvas');
+  const width = 600;
+  const height = 400 + garden.length*50;
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+
+  // Background by season
+  const colors = {spring:"#f0fff0", summer:"#fffbe0", autumn:"#fff5e6", winter:"#e0f0ff"};
+  ctx.fillStyle = colors[season] || "#f0fff0";
+  ctx.fillRect(0,0,width,height);
+
+  ctx.fillStyle = "#4caf50";
+  ctx.font = "20px monospace";
+  let y = 30;
+  garden.forEach(p=>{
+    ctx.fillText(`${p.ascii} ${p.name} (${p.personality})`, 10, y);
+    ctx.font = "16px monospace";
+    ctx.fillText(`"${p.haiku}"`, 20, y+20);
+    y += 50;
+    ctx.font = "20px monospace";
+  });
+
+  const url = canvas.toDataURL("image/png");
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = "garden.png";
+  a.click();
+}
+
+// ----- Button Handlers -----
+document.getElementById('plantBtn').onclick = plantSeed;
+
+// ----- Initial Render -----
+renderGarden();
+renderHaikus();
+</script>
+
+</body>
+</html>
